@@ -308,7 +308,7 @@ static TOKEN gettok() {
   }
 
   if (LastChar == '<') {
-    NextChar = getc(pFile);
+    NextChar = getc(pFile);getNext
     if (NextChar == '=') { // LE: <=
       LastChar = getc(pFile);
       columnNo += 2;
@@ -385,6 +385,7 @@ static TOKEN getNextToken() {
 
 static void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
+
 //===----------------------------------------------------------------------===//
 // AST nodes
 //===----------------------------------------------------------------------===//
@@ -398,13 +399,13 @@ public:
 };
 
 /// IntASTnode - Class for integer literals like 1, 2, 10,
-class IntASTnode : public ASTnode {
+class IntLitASTnode : public ASTnode {
   int Val;
   TOKEN Tok;
   std::string Name;
 
 public:
-  IntASTnode(TOKEN tok, int val) : Val(val), Tok(tok) {}
+  IntLitASTnode(TOKEN tok, int val) : Val(val), Tok(tok) {}
   virtual Value *codegen() override;
   // virtual std::string to_string() const override {
   // return a sting representation of this AST node
@@ -416,6 +417,20 @@ public:
 //===----------------------------------------------------------------------===//
 // Recursive Descent Parser - Function call for each production
 //===----------------------------------------------------------------------===//
+
+static bool err_flag = false;
+
+static void showErr(TOKEN T){
+  perror("Unexpected Token ",T.lexeme, " at Row " << T.lineNo << " and Column " << T.columnNo << "\n);
+  err_flag = true;
+}
+
+static bool match(TOKEN T){
+  if(CurTok == T){
+    return true;
+  }
+  return false;
+}
 
 /* Add function calls for each production */
 
