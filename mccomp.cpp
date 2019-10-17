@@ -308,7 +308,7 @@ static TOKEN gettok() {
   }
 
   if (LastChar == '<') {
-    NextChar = getc(pFile);getNext
+    NextChar = getc(pFile);
     if (NextChar == '=') { // LE: <=
       LastChar = getc(pFile);
       columnNo += 2;
@@ -385,7 +385,6 @@ static TOKEN getNextToken() {
 
 static void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
-
 //===----------------------------------------------------------------------===//
 // AST nodes
 //===----------------------------------------------------------------------===//
@@ -420,16 +419,390 @@ public:
 
 static bool err_flag = false;
 
+//displays error message
 static void showErr(TOKEN T){
-  perror("Unexpected Token ",T.lexeme, " at Row " << T.lineNo << " and Column " << T.columnNo << "\n);
+  fprintf(stderr, "Unexpected Token %s at Row %d and Column %d \n", T.lexeme.c_str(), T.lineNo, T.columnNo);
   err_flag = true;
 }
 
+//matches token and returns false if error
 static bool match(TOKEN T){
-  if(CurTok == T){
+  if(CurTok.type == T.type){
     return true;
   }
   return false;
+}
+
+//First and Follow sets for every non-terminal
+
+static bool firstProgram(){
+  return(CurTok.type==EXTERN || CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followProgram(){
+  return(CurTok.type==EOF_TOK);
+}
+
+static bool firstExternList(){
+  return(CurTok.type==EXTERN);
+}
+
+static bool followExternList(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool firstplusExternListSub(){
+  return(CurTok.type==EXTERN || followExternList());
+}
+
+static bool followExternListSub(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool firstExtern(){
+  return(CurTok.type==EXTERN);
+}
+
+static bool followExtern(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool firstDeclList(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followDeclList(){
+  return(CurTok.type==EOF_TOK);
+}
+
+static bool firstplusDeclListSub(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || followDeclList());
+}
+
+static bool followDeclListSub(){
+  return(CurTok.type==EOF_TOK);
+}
+
+static bool firstDecl(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followDecl(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || CurTok.type==EOF_TOK);
+}
+
+static bool firstVarDecl(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followVarDecl(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || CurTok.type==EOF_TOK);
+}
+
+static bool firstFunDecl(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followFunDecl(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || CurTok.type==EOF_TOK);
+}
+
+static bool firstTypeSpec(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followTypeSpec(){
+  return(CurTok.type==IDENT);
+}
+
+static bool firstVarType(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followVarType(){
+  return(CurTok.type==IDENT);
+}
+
+static bool followParams(){
+  return(CurTok.type==RPAR);
+}
+
+static bool firstplusParams(){
+  return(CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || followParams());
+}
+
+static bool firstParamList(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followParamList(){
+  return(CurTok.type==RPAR);
+}
+
+static bool firstParamListSub(){
+  return(CurTok.type==COMMA || followParamList());
+}
+
+static bool followParamListSub(){
+  return(CurTok.type==RPAR);
+}
+
+static bool firstParam(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followParam(){
+  return(CurTok.type==RPAR || CurTok.type==COMMA);
+}
+
+static bool firstBlock(){
+  return(CurTok.type==LBRA);
+}
+
+static bool followBlock(){
+  return(CurTok.type==EOF_TOK || CurTok.type==IDENT || CurTok.type==SC || CurTok.type==VOID_TOK || CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS
+  || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followLocalDecls(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA ||CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool firstplusLocalDecls(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || followLocalDecls());
+}
+
+static bool firstLocalDecl(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK);
+}
+
+static bool followLocalDecl(){
+  return(CurTok.type==INT_TOK || CurTok.type==FLOAT_TOK || CurTok.type==BOOL_TOK || CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA ||CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR
+  || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followStmtList(){
+  return(CurTok.type==RBRA);
+}
+
+static bool firstplusStmtList(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || followStmtList());
+}
+
+static bool firstStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstExprStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followExprStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstWhileStmt(){
+  return(CurTok.type==WHILE);
+}
+
+static bool followWhileStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstIfStmt(){
+  return(CurTok.type==IF);
+}
+
+static bool followIfStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstplusElseStmt(){
+  return(CurTok.type==ELSE || followIfStmt());
+}
+
+static bool followElseStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstReturnStmt(){
+  return(CurTok.type==RETURN);
+}
+
+static bool followReturnStmt(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstReturnStmtSub(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followReturnStmtSub(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==LBRA || CurTok.type==WHILE || CurTok.type==IF || CurTok.type==RETURN || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==RBRA);
+}
+
+static bool firstExpr(){
+  return(CurTok.type==IDENT || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followExpr(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==COMMA || CurTok.type==RPAR || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool firstOrTerm(){
+  return(CurTok.type==IDENT || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT);
+}
+
+static bool followOrTerm(){
+  return(CurTok.type==IDENT || CurTok.type==SC || CurTok.type==COMMA || CurTok.type==RPAR || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==BOOL_LIT || CurTok.type==FLOAT_LIT || CurTok.type==OR);
+}
+
+static bool firstplusOrTermSub(){
+  return(CurTok.type==OR || followOrTerm());
+}
+
+static bool followOrTermSub(){
+  return(followOrTerm());
+}
+
+static bool firstAndTerm(){
+  return(firstOrTerm());
+}
+
+static bool followAndTerm(){
+  return(followOrTerm() || CurTok.type==AND);
+}
+
+static bool firstplusAndTermSub(){
+  return(CurTok.type==AND || followAndTerm());
+}
+
+static bool followAndTermSub(){
+  return(followAndTerm());
+}
+
+static bool firstEqualityTerm(){
+  return(firstAndTerm());
+}
+
+static bool followEqualityTerm(){
+  return(followAndTerm() || CurTok.type==EQ || CurTok.type==NE);
+}
+
+static bool firstplusEqualityTermSub(){
+  return(CurTok.type==EQ || CurTok.type ==NE || followEqualityTerm());
+}
+
+static bool followEqualityTermSub(){
+  return(followEqualityTerm());
+}
+
+static bool firstComparisonTerm(){
+  return(firstEqualityTerm());
+}
+
+static bool followComparisonTerm(){
+  return(followEqualityTerm() || CurTok.type==GE || CurTok.type==GT || CurTok.type==LE || CurTok.type==LT);
+}
+
+static bool firstplusComparisonTermSub(){
+  return(CurTok.type==GE || CurTok.type==GT || CurTok.type==LE || CurTok.type==LT || followComparisonTerm());
+}
+
+static bool followComparisonTermSub(){
+  return(followComparisonTerm());
+}
+
+static bool firstAddSubtTerm(){
+  return(firstComparisonTerm());
+}
+
+static bool followAddSubtTerm(){
+  return(followComparisonTerm() || CurTok.type==PLUS);
+}
+
+static bool firstplusAddSubtTermSub(){
+  return(CurTok.type==PLUS || CurTok.type==MINUS || followAddSubtTerm());
+}
+
+static bool followAddSubtTermSub(){
+  return(followComparisonTerm());
+}
+
+static bool firstMultDivModTerm(){
+  return(firstAddSubtTerm());
+}
+
+static bool followMultDivModTerm(){
+  return(followAndTerm() || CurTok.type==ASTERIX || CurTok.type==DIV || CurTok.type==MOD);
+}
+
+static bool firstplusMultDivModTermSub(){
+  return(CurTok.type==ASTERIX || CurTok.type==DIV || CurTok.type==MOD || followMultDivModTerm());
+}
+
+static bool followMultDivModTermSub(){
+  return(followMultDivModTerm());
+}
+
+static bool firstNegNotTerm(){
+  return(CurTok.type==IDENT || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==FLOAT_LIT || CurTok.type==BOOL_LIT);
+}
+
+static bool followNegNotTerm(){
+  return(followMultDivModTerm());
+}
+
+static bool firstParenTerm(){
+  return(CurTok.type==IDENT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==FLOAT_LIT || CurTok.type==BOOL_LIT);
+}
+
+static bool followParenTerm(){
+  return(followNegNotTerm());
+}
+
+static bool firstIdentTerm(){
+  return(CurTok.type=IDENT || CurTok.type==INT_LIT || CurTok.type==FLOAT_LIT || CurTok.type==BOOL_LIT);
+}
+
+static bool followIdentTerm(){
+  return(followParenTerm());
+}
+
+static bool firstplusIdentTermSub(){
+  return(CurTok.type==LPAR || followIdentTerm());
+}
+
+static bool followIdentTermSub(){
+  return(followIdentTerm());
+}
+
+static bool firstLitTerm(){
+  return(CurTok.type==INT_LIT || CurTok.type==FLOAT_LIT || CurTok.type==BOOL_LIT);
+}
+
+static bool followLitTerm(){
+  return(followIdentTerm());
+}
+
+static bool followArgList(){
+  return(CurTok.type==RPAR);
+}
+
+static bool firstplusArgList(){
+  return(CurTok.type==IDENT || CurTok.type==MINUS || CurTok.type==NOT || CurTok.type==LPAR || CurTok.type==INT_LIT || CurTok.type==FLOAT_LIT || CurTok.type==BOOL_LIT || followArgList());
+}
+
+static bool firstplusArgListSub(){
+  return(CurTok.type==COMMA || followArgList());
+}
+
+static bool followArgListSub(){
+  return(CurTok.type==RPAR);
 }
 
 /* Add function calls for each production */
@@ -448,7 +821,7 @@ static IRBuilder<> Builder(TheContext);
 static std::unique_ptr<Module> TheModule;
 
 //===----------------------------------------------------------------------===//
-// AST Printer
+// AST Printerelse
 //===----------------------------------------------------------------------===//
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
