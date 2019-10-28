@@ -6,4 +6,4 @@ mccomp: mccomp.cpp
 	$(CXX) mccomp.cpp $(CFLAGS) -o mccomp
 
 clean:
-	rm -rf mccomp 
+	rm -rf mccomp
