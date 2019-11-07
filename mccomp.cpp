@@ -473,10 +473,11 @@ public:
 
 //AST node for Identifiers
 class IdentASTnode : public ASTnode{
-  std::string Val;
   TOKEN Tok;
 
 public:
+  std::string Val;
+
   IdentASTnode(TOKEN tok, std::string val) : Tok(tok), Val(val){}
 
   std::string getVal(){
@@ -732,10 +733,15 @@ public:
 class IfBuilderASTnode : public ASTnode{
   std::unique_ptr<BlockASTnode> IfStmt;
   std::unique_ptr<BlockASTnode> ElseStmt;
+  bool hasElse = true;
 
 public:
   IfBuilderASTnode(std::unique_ptr<BlockASTnode> ifStmt, std::unique_ptr<BlockASTnode> elseStmt) :
-  IfStmt(std::move(ifStmt)), ElseStmt(std::move(elseStmt)){}
+  IfStmt(std::move(ifStmt)), ElseStmt(std::move(elseStmt)){
+    if(ElseStmt == nullptr){
+      hasElse = false;
+    }
+  }
 
   std::unique_ptr<BlockASTnode> getIfStmt(){
     return std::move(IfStmt);
@@ -743,6 +749,10 @@ public:
 
   std::unique_ptr<BlockASTnode> getElseStmt(){
     return std::move(ElseStmt);
+  }
+
+  bool getHasElse(){
+    return hasElse;
   }
 
   virtual Value *codegen() override{
@@ -3206,9 +3216,11 @@ Value *LiteralsASTnode::codegen(){
 Value *BinOpExprASTnode::codegen(){
   Value *L = LHS->codegen();
   Value *R = RHS->codegen();
+
   if(!L || !R){
     return nullptr;
   }
+
   auto leftType = L->getType();
   auto rightType = R->getType();
 
@@ -3401,6 +3413,7 @@ Value *UnaryOpExprASTnode::codegen(){
 }
 
 Value *IdentASTnode::codegen(){
+  std::cout << "Ident: " << Val << std::endl;
   // check ifvariable is in local scope
   Value *V = NamedValues[Val];
   // ifnot, check ifit is in global scope
@@ -3423,7 +3436,7 @@ Value *VarDeclsASTnode::codegen(){
       case INT_TOK:
         return new GlobalVariable(*TheModule,Type::getInt32Ty(TheContext),false,  GlobalValue::CommonLinkage, ConstantInt::get(TheContext, APInt(32,0)), Identifier->getVal());
       case FLOAT_TOK:
-        return new GlobalVariable(*TheModule,Type::getFloatTy(TheContext),false,  GlobalValue::CommonLinkage, ConstantFP::get(TheContext, APFloat(0.0)), Identifier->getVal());
+        return new GlobalVariable(*TheModule,Type::getFloatTy(TheContext),false,  GlobalValue::CommonLinkage, ConstantFP::get(TheContext, APFloat((float)0)), Identifier->getVal());
       case BOOL_TOK:
         return new GlobalVariable(*TheModule,Type::getInt1Ty(TheContext),false,  GlobalValue::CommonLinkage, ConstantInt::get(TheContext, APInt(1,0)), Identifier->getVal());
       default:
@@ -3481,6 +3494,22 @@ Value *AssExprASTnode::codegen(){
 }
 
 Value *FunctionCallASTnode::codegen(){
+  if(isVar){
+    Value *V = NamedValues[Identifier->Val];
+    // ifnot, check ifit is in global scope
+    if(!V){
+      V = TheModule->getNamedValue(Identifier->Val);
+      // ifstill not found
+      if(!V){
+        std::string s = "Variable ";
+        s += Identifier->Val;
+        s += " is not in current scope\n";
+        return LogErrorV(s.c_str());
+      }
+    }
+    return Builder.CreateLoad(V, Identifier->Val.c_str());
+  }
+
   Function *F = TheModule->getFunction(Identifier->getVal());
 
   if(!F){
@@ -3588,21 +3617,26 @@ Value *WhileStmtASTnode::codegen(){
   BasicBlock *ConditionBlock = BasicBlock::Create(TheContext, "condition", F);
   BasicBlock *LoopBlock = BasicBlock::Create(TheContext, "whileloop", F);
   BasicBlock *PostLoopBlock = BasicBlock::Create(TheContext, "postloop", F);
+
   Builder.CreateBr(ConditionBlock);
   Builder.SetInsertPoint(ConditionBlock);
 
   Value *Condition = Expression->codegen();
+
   if(!Condition){
     return nullptr;
   }
 
-  Condition = Builder.CreateFCmpONE(Condition, ConstantFP::get(TheContext, APFloat(0.0)), "loopcondition");
+  Condition = Builder.CreateFCmpONE(Condition, ConstantFP::get(TheContext, APFloat((float)0)), "loopcondition");
+
   Builder.CreateCondBr(Condition, LoopBlock, PostLoopBlock);
 
   Builder.SetInsertPoint(LoopBlock);
 
-  if(!Statement->codegen())
+  if(!Statement->codegen()){
       return nullptr;
+  }
+
   Builder.CreateBr(ConditionBlock);
 
   Builder.SetInsertPoint(PostLoopBlock);
@@ -3611,6 +3645,7 @@ Value *WhileStmtASTnode::codegen(){
 }
 
 Value *IfStmtASTnode::codegen(){
+
   Value *Condition = Expression->codegen();
 
   if(!Condition){
@@ -3619,9 +3654,10 @@ Value *IfStmtASTnode::codegen(){
 
   // Upgrade bool value from comparison to float
   if(Condition->getType() == Type::getInt1Ty(TheContext)){
-      Condition = Builder.CreateSIToFP(Condition, Type::getFloatTy(TheContext), "upgradeExptoFloat");
+      Condition = Builder.CreateSIToFP(Condition, Type::getFloatTy(TheContext), "upgradebooltoFloat");
   }
-  Condition = Builder.CreateFCmpONE(Condition, ConstantFP::get(TheContext, APFloat(0.0)), "ifcondition\n");
+
+  Condition = Builder.CreateFCmpONE(Condition, ConstantFP::get(TheContext, APFloat((float)0)), "ifcondition\n");
 
   Function *F = Builder.GetInsertBlock()->getParent();
 
@@ -3630,21 +3666,26 @@ Value *IfStmtASTnode::codegen(){
   BasicBlock *PostBlock = BasicBlock::Create(TheContext, "postif");
 
   // if there is an else statement
-  if(IfElseStmts->getElseStmt()){
+  if(IfElseStmts->getHasElse()){
     Builder.CreateCondBr(Condition, IfBlock, ElseBlock);
 
     Builder.SetInsertPoint(IfBlock);
+
     Value *IfVal = IfElseStmts->getIfStmt()->codegen();
+
     if(!IfVal){
       return nullptr;
     }
+
     Builder.CreateBr(PostBlock);
     IfBlock = Builder.GetInsertBlock();
 
     F->getBasicBlockList().push_back(ElseBlock);
+
     Builder.SetInsertPoint(ElseBlock);
-    Value *ElseVal;
-    ElseVal =  IfElseStmts->getElseStmt()->codegen();
+
+    Value *ElseVal = IfElseStmts->getElseStmt()->codegen();
+
     if(!ElseVal){
       return nullptr;
     }
@@ -3655,6 +3696,7 @@ Value *IfStmtASTnode::codegen(){
 
     F->getBasicBlockList().push_back(PostBlock);
     Builder.SetInsertPoint(PostBlock);
+
     PHINode *PN;
     if(IfVal->getType() == Type::getFloatTy(TheContext)){
       PN = Builder.CreatePHI(Type::getFloatTy(TheContext), 2, "iftmp");
@@ -3720,7 +3762,7 @@ Value *BlockASTnode::codegen(){
           break;
         case FLOAT_TOK:
           type = Type::getFloatTy(TheContext);
-          val = ConstantFP::get(TheContext, APFloat(0.0));
+          val = ConstantFP::get(TheContext, APFloat((float)0));
           break;
         case BOOL_TOK:
           type = Type::getInt1Ty(TheContext);
@@ -3745,7 +3787,6 @@ Value *BlockASTnode::codegen(){
     // set back to outer scope variables
     NamedValues[LocalDecls[i]->getName()] = Tmp[i];
   }
-
   return returnStmt;
 }
 
@@ -3831,8 +3872,10 @@ int main(int argc, char **argv){
     return 1;
   }
 
+  std::cout << "\n\nPRINTING IR" << '\n';
   TheModule->print(errs(), nullptr); // print IR to terminal
   TheModule->print(dest, nullptr);
+  std::cout << "END OF IR." << std::endl;
   //********************* End printing final IR ****************************
 
   fclose(pFile); // close the file that contains the code that was parsed

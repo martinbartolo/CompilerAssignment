@@ -1,38 +1,41 @@
 ; ModuleID = 'mini-c'
 source_filename = "mini-c"
 
-declare float @print_float(float)
+@test = common global i32 0
+@f = common global float 0.000000e+00
+@b = common global i1 false
 
-define float @cosine(float %x) {
+declare i32 @print_int(i32)
+
+define i32 @While(i32 %n) {
 block:
-  %alt = alloca float
-  %eps = alloca float
-  %term = alloca float
-  %n = alloca float
-  %cos = alloca float
-  %x1 = alloca float
-  store float %x, float* %x1
-  store double 0.000000e+00, float* %cos
-  store double 0.000000e+00, float* %n
-  store double 0.000000e+00, float* %term
-  store double 0.000000e+00, float* %eps
-  store double 0.000000e+00, float* %alt
-  %eps2 = load float, float* %eps
-  store float 0x3EB0C6F7A0000000, float* %eps
-  %n3 = load float, float* %n
-  store float 1.000000e+00, float* %n
-  %cos4 = load float, float* %cos
-  store float 1.000000e+00, float* %cos
-  %term5 = load float, float* %term
-  store float 1.000000e+00, float* %term
-  %alt6 = load float, float* %alt
-  store float -1.000000e+00, float* %alt
+  %result = alloca i32
+  %n1 = alloca i32
+  store i32 %n, i32* %n1
+  store i32 0, i32* %result
+  %test = load i32, i32* @test
+  store i32 12, i32* @test
+  %result2 = load i32, i32* %result
+  store i32 0, i32* %result
+  %test3 = load i32, i32* @test
+  %calltmp = call i32 @print_int(i32 %test3)
   br label %condition
 
-condition:                                        ; preds = %block
-  ret void
+condition:                                        ; preds = %whileloop, %block
+  %result4 = load i32, i32* %result
+  %lttmp = icmp ult i32 %result4, 10
+  %booltmp = sitofp i1 %lttmp to float
+  %loopcondition = fcmp one float %booltmp, 0.000000e+00
+  br i1 %loopcondition, label %whileloop, label %postloop
 
-whileloop:                                        ; No predecessors!
+whileloop:                                        ; preds = %condition
+  %result5 = load i32, i32* %result
+  %addtmp = add i32 %result5, 1
+  %result6 = load i32, i32* %result
+  store i32 %addtmp, i32* %result
+  br label %condition
 
-postloop:                                         ; No predecessors!
+postloop:                                         ; preds = %condition
+  %result7 = load i32, i32* %result
+  ret i32 %result7
 }
