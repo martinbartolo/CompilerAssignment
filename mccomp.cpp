@@ -374,6 +374,7 @@ static TOKEN NextTok;
 static TOKEN NextNextTok;
 static std::deque<TOKEN> tok_buffer;
 
+// function to get next token. Uses 3 tokens to allow for a 2 token lookahead
 static TOKEN getNextToken(){
   CurTok = NextTok;
   NextTok = NextNextTok;
@@ -474,10 +475,9 @@ public:
 //AST node for Identifiers
 class IdentASTnode : public ASTnode{
   TOKEN Tok;
-
-public:
   std::string Val;
 
+public:
   IdentASTnode(TOKEN tok, std::string val) : Tok(tok), Val(val){}
 
   std::string getVal(){
@@ -558,7 +558,7 @@ public:
 class VarListASTnode : public ASTnode{
 public:
   std::vector<std::unique_ptr<VarDeclsASTnode>> Variables;
-  VarListASTnode(){};
+  VarListASTnode(){};// constructor for empty list
   VarListASTnode(std::vector<std::unique_ptr<VarDeclsASTnode>> variables) : Variables(std::move(variables)){}
 
   void addToParams(std::unique_ptr<VarDeclsASTnode> variable){
@@ -587,12 +587,12 @@ public:
 class FunctionCallASTnode : public ASTnode{
   std::unique_ptr<IdentASTnode> Identifier;
   std::vector<std::unique_ptr<ASTnode>> Arguments;
+  bool isVar = false;
 
 public:
-  bool isVar = false;
   FunctionCallASTnode(std::unique_ptr<IdentASTnode> identifier, std::vector<std::unique_ptr<ASTnode>> arguments) :
-  Identifier(std::move(identifier)), Arguments(std::move(arguments)){}
-  FunctionCallASTnode(std::unique_ptr<IdentASTnode> identifier) : Identifier(std::move(identifier)){ isVar = true; }
+  Identifier(std::move(identifier)), Arguments(std::move(arguments)){}// for fuinction call
+  FunctionCallASTnode(std::unique_ptr<IdentASTnode> identifier) : Identifier(std::move(identifier)){ isVar = true; }// for variable call
 
   virtual Value *codegen() override;
 
@@ -793,8 +793,8 @@ class ReturnStmtASTnode : public ASTnode{
   std::unique_ptr<ASTnode> Expression;
 
 public:
-  ReturnStmtASTnode(std::unique_ptr<ASTnode> expression) : Expression(std::move(expression)){}
-  ReturnStmtASTnode(){}
+  ReturnStmtASTnode(std::unique_ptr<ASTnode> expression) : Expression(std::move(expression)){}// when return has an expression
+  ReturnStmtASTnode(){}// when return has no expression
 
   virtual Value *codegen() override;
 
@@ -865,8 +865,8 @@ class ProgramASTnode : public ASTnode{
 public:
   virtual ~ProgramASTnode(){};
   ProgramASTnode(std::vector<std::unique_ptr<FunctionBuilderASTnode>> extList, std::vector<std::unique_ptr<ASTnode>> declList) :
-  ExtList(std::move(extList)), DeclList(std::move(declList)){}
-  ProgramASTnode(std::vector<std::unique_ptr<ASTnode>> declList) :DeclList(std::move(declList)){}
+  ExtList(std::move(extList)), DeclList(std::move(declList)){}// when program has externs
+  ProgramASTnode(std::vector<std::unique_ptr<ASTnode>> declList) :DeclList(std::move(declList)){}// when program has no externs
 
   virtual Value *codegen() override;
 
@@ -899,6 +899,7 @@ static void showErr(std::string s){
   err_flag = true;
 }
 
+//displays error from IR Generation stage
 static void showCodeGenErr(const char *s){
   fprintf(stderr, "Error in Code Generation: %s", s);
 }
@@ -1764,7 +1765,7 @@ static std::unique_ptr<BinOpExprASTnode> Add_Subt_Term_Sub(){
   return nullptr;
 }
 
-// add_subt_term ::= add_subt_term add_subt_term_sub
+// add_subt_term ::= mult_div_mod_term add_subt_term_sub
 static std::unique_ptr<ASTnode> Add_Subt_Term(){
   if(err_flag || !firstAddSubtTerm()){
     showErr("Expected an identifier, MINUS, NOT, LPAR or a literal.");
@@ -3413,7 +3414,6 @@ Value *UnaryOpExprASTnode::codegen(){
 }
 
 Value *IdentASTnode::codegen(){
-  std::cout << "Ident: " << Val << std::endl;
   // check ifvariable is in local scope
   Value *V = NamedValues[Val];
   // ifnot, check ifit is in global scope
@@ -3495,19 +3495,19 @@ Value *AssExprASTnode::codegen(){
 
 Value *FunctionCallASTnode::codegen(){
   if(isVar){
-    Value *V = NamedValues[Identifier->Val];
+    Value *V = NamedValues[Identifier->getVal()];
     // ifnot, check ifit is in global scope
     if(!V){
-      V = TheModule->getNamedValue(Identifier->Val);
+      V = TheModule->getNamedValue(Identifier->getVal());
       // ifstill not found
       if(!V){
         std::string s = "Variable ";
-        s += Identifier->Val;
+        s += Identifier->getVal();
         s += " is not in current scope\n";
         return LogErrorV(s.c_str());
       }
     }
-    return Builder.CreateLoad(V, Identifier->Val.c_str());
+    return Builder.CreateLoad(V, Identifier->getVal().c_str());
   }
 
   Function *F = TheModule->getFunction(Identifier->getVal());
@@ -3872,10 +3872,11 @@ int main(int argc, char **argv){
     return 1;
   }
 
-  std::cout << "\n\nPRINTING IR" << '\n';
-  TheModule->print(errs(), nullptr); // print IR to terminal
+  //std::cout << "\n\nPRINTING IR" << '\n';
+  //TheModule->print(errs(), nullptr); // print IR to terminal
+  //std::cout << "END OF IR." << std::endl;
+  std::cout << "\nPRINTING IR TO output.ll" << '\n';
   TheModule->print(dest, nullptr);
-  std::cout << "END OF IR." << std::endl;
   //********************* End printing final IR ****************************
 
   fclose(pFile); // close the file that contains the code that was parsed

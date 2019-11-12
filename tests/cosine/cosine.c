@@ -18,11 +18,13 @@ float cosine (float x) {
   alt = -1.0;
 
   while (term > eps) { 
+    //term = (((term * x) * x) / n) / (n+1);
     term = term * x * x / n / (n+1);
     cos = cos + alt * term;
     alt = -alt;
     n = n + 2;
-    
+    //print_float(term);
+     
   }
 
   print_float(cos);
